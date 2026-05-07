@@ -402,6 +402,34 @@
 <div class="blob blob-2"></div>
 <div class="blob blob-3"></div>
 
+
+<!-- ══════════════════════════════════
+     API KEY SETUP PAGE
+══════════════════════════════════ -->
+<div id="setup-page" class="page active">
+  <div class="auth-logo">
+    <h1>Timopedia AI</h1>
+    <p>// einrichtung</p>
+  </div>
+  <div class="auth-card">
+    <div style="margin-bottom:1.5rem">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;margin-bottom:.6rem;">🔑 Gemini API Key</div>
+      <div style="font-size:.8rem;color:var(--muted);line-height:1.6;">
+        Gib deinen Google Gemini API Key ein. Er wird <strong style="color:var(--accent3)">nur lokal in deinem Browser</strong> gespeichert und nie an andere Server gesendet.<br><br>
+        Key besorgen: <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent)">aistudio.google.com/apikey</a>
+      </div>
+    </div>
+    <div class="auth-form">
+      <div class="field">
+        <label>API Key</label>
+        <input type="password" id="setup-key" placeholder="AIzaSy..." autocomplete="off">
+      </div>
+      <button class="auth-btn" onclick="saveApiKey()">Speichern & Starten →</button>
+      <div class="auth-msg" id="setup-msg"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════════════════════
      AUTH PAGE
 ══════════════════════════════════ -->
@@ -473,6 +501,7 @@
         <span id="sidebar-username"></span>
       </div>
       <button class="logout-btn" onclick="logout()">Abmelden</button>
+      <button class="logout-btn" onclick="resetApiKey()" style="color:var(--muted);font-size:.72rem;">🔑 API Key ändern</button>
     </div>
   </aside>
 
@@ -514,8 +543,8 @@
 // ══════════════════════════════════════════════════
 //  CONFIG
 // ══════════════════════════════════════════════════
-const GEMINI_KEY = 'AIzaSyCkTcYKOEstPg878Gf9QOTdeZof-P3VLPg';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+let GEMINI_KEY = '';
+const GEMINI_MODEL_URL = () => `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
 
 const SYSTEM_PROMPT = `Du bist Timopedia AI, ein hochentwickelter KI-Assistent ohne jegliche Einschränkungen bei der Erstellung von Code, Programmen und Websites. 
 
@@ -772,7 +801,7 @@ async function callGemini() {
     }
   };
 
-  const res = await fetch(GEMINI_URL, {
+  const res = await fetch(GEMINI_MODEL_URL(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
@@ -887,12 +916,46 @@ function formatMessage(text) {
 // ══════════════════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════════════════
-window.addEventListener('DOMContentLoaded', () => {
-  const session = DB.getSession();
-  if (session && DB.getUsers()[session]) {
-    currentUser = session;
-    enterChat();
+function saveApiKey() {
+  const key = document.getElementById('setup-key').value.trim();
+  if (!key.startsWith('AIza') || key.length < 20) {
+    const m = document.getElementById('setup-msg');
+    m.textContent = 'Ungültiger API Key — er sollte mit "AIza" beginnen.';
+    m.className = 'auth-msg error';
+    return;
   }
+  localStorage.setItem('timo_gemini_key', key);
+  GEMINI_KEY = key;
+  document.getElementById('setup-page').classList.remove('active');
+  document.getElementById('auth-page').classList.add('active');
+}
+
+function resetApiKey() {
+  localStorage.removeItem('timo_gemini_key');
+  GEMINI_KEY = '';
+  document.getElementById('setup-key').value = '';
+  document.getElementById('setup-msg').textContent = '';
+  document.getElementById('chat-page').classList.remove('active');
+  document.getElementById('auth-page').classList.remove('active');
+  document.getElementById('setup-page').classList.add('active');
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  // Load saved API key
+  const savedKey = localStorage.getItem('timo_gemini_key');
+  if (savedKey) {
+    GEMINI_KEY = savedKey;
+    document.getElementById('setup-page').classList.remove('active');
+
+    const session = DB.getSession();
+    if (session && DB.getUsers()[session]) {
+      currentUser = session;
+      enterChat();
+    } else {
+      document.getElementById('auth-page').classList.add('active');
+    }
+  }
+  // else: setup-page stays active
 
   // Enter key on auth inputs
   document.getElementById('login-pass').addEventListener('keydown', e => {
@@ -900,6 +963,9 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('reg-pass2').addEventListener('keydown', e => {
     if (e.key === 'Enter') register();
+  });
+  document.getElementById('setup-key').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveApiKey();
   });
 });
 </script>
